@@ -10,7 +10,13 @@ services:
     networks:
       - app-network
     volumes:
-      - sqlserver_data:/var/opt/mssql 
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U SA -P MasterKey0 -Q \"SELECT 1\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   api:
     image: serverside
@@ -18,15 +24,16 @@ services:
     build:
       context: ./ServerSide
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
     environment:
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AppDb;User Id=sa;Password=MasterKey0;TrustServerCertificate=True;  
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AppDb;User Id=sa;Password=MasterKey0;TrustServerCertificate=True;
       - AllowedOrigins=http://localhost
     ports:
       - "8082:8080"
     networks:
       - app-network
-    
+
   client:
     image: clientside
     container_name: clientside
@@ -39,11 +46,11 @@ services:
     depends_on:
       - api
     networks:
-    - app-network
+      - app-network
 
 networks:
   app-network:
     driver: bridge
 
 volumes:
-  sqlserver_data:   
+  sqlserver_data:
